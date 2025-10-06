@@ -1,0 +1,47 @@
+.workflow-grid {
+  display: grid;
+  gap: 1.4rem;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.workflow-grid article {
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.2), rgba(244, 114, 182, 0.18));
+  border: 1px solid rgba(244, 114, 182, 0.3);
+  border-radius: 20px;
+  padding: 1.6rem;
+  display: grid;
+  gap: 0.9rem;
+  color: #fdf4ff;
+  box-shadow: 0 16px 36px rgba(76, 29, 149, 0.25);
+}
+
+.workflow-grid header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.workflow-grid h4 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.pain-point {
+  color: rgba(255, 237, 213, 0.85);
+  margin: 0;
+  font-weight: 600;
+}
+
+.ai-assist {
+  margin: 0;
+  color: rgba(254, 249, 195, 0.85);
+}
+
+.benefit {
+  margin: 0;
+  color: rgba(224, 231, 255, 0.9);
+  font-weight: 500;
+}

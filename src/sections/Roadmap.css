@@ -1,0 +1,44 @@
+.roadmap {
+  display: grid;
+  gap: 1.8rem;
+  color: #f8fafc;
+}
+
+.roadmap header h2 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+.roadmap header p {
+  margin: 0.4rem 0 0;
+  color: rgba(226, 232, 240, 0.76);
+}
+
+.roadmap__grid {
+  display: grid;
+  gap: 1.4rem;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.roadmap article {
+  background: linear-gradient(160deg, rgba(37, 99, 235, 0.18), rgba(13, 148, 136, 0.18));
+  padding: 1.6rem;
+  border-radius: 20px;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  box-shadow: 0 18px 42px rgba(7, 89, 133, 0.22);
+}
+
+.roadmap h3 {
+  margin: 0 0 1rem;
+}
+
+.roadmap ul {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.roadmap li {
+  color: rgba(226, 232, 240, 0.86);
+}

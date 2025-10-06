@@ -1,0 +1,53 @@
+.growth-grid {
+  display: grid;
+  gap: 1.4rem;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.growth-grid article {
+  background: linear-gradient(165deg, rgba(59, 130, 246, 0.22), rgba(14, 165, 233, 0.12));
+  border-radius: 20px;
+  padding: 1.5rem;
+  border: 1px solid rgba(14, 165, 233, 0.3);
+  display: grid;
+  gap: 1rem;
+  color: #f5f9ff;
+}
+
+.growth-grid header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.badge {
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.badge--high {
+  background: rgba(244, 63, 94, 0.75);
+}
+
+.badge--medium {
+  background: rgba(234, 179, 8, 0.75);
+}
+
+.badge--low {
+  background: rgba(34, 197, 94, 0.75);
+}
+
+.growth-grid h3 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.growth-grid p {
+  margin: 0;
+  line-height: 1.5;
+  color: rgba(226, 232, 255, 0.78);
+}

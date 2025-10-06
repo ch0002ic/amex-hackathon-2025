@@ -1,0 +1,220 @@
+.innovation-ideas {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.innovation-ideas__header {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .innovation-ideas__header {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+}
+
+.innovation-ideas__header h2 {
+  font-size: 1.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.innovation-ideas__header p {
+  color: var(--slate-400);
+  max-width: 42rem;
+}
+
+.innovation-ideas__legend {
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  gap: 0.75rem;
+  align-items: center;
+  font-size: 0.85rem;
+  color: var(--slate-400);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  padding: 0.6rem 1rem;
+}
+
+.innovation-ideas__grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .innovation-ideas__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.innovation-ideas__card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-radius: 1.25rem;
+  background: rgba(16, 37, 70, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 20px 45px -24px rgba(8, 12, 26, 0.6);
+  position: relative;
+  overflow: hidden;
+}
+
+.innovation-ideas__card header {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .innovation-ideas__card header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+}
+
+.innovation-ideas__category {
+  font-size: 0.85rem;
+  color: var(--cyan-300);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 0.35rem;
+}
+
+.innovation-ideas__scores {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem 1rem;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  min-width: 16rem;
+}
+
+.innovation-ideas__scores dt {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--slate-400);
+}
+
+.innovation-ideas__scores dd {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--white);
+}
+
+.innovation-ideas__description {
+  color: var(--slate-200);
+  line-height: 1.6;
+}
+
+.innovation-ideas__lists {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .innovation-ideas__lists {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.innovation-ideas__lists h4 {
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.35rem;
+  color: var(--slate-300);
+}
+
+.innovation-ideas__lists ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.innovation-ideas__lists li {
+  font-size: 0.9rem;
+  color: var(--slate-200);
+  line-height: 1.5;
+}
+
+.innovation-ideas__lists li::before {
+  content: '•';
+  color: var(--cyan-300);
+  margin-right: 0.5rem;
+}
+
+.innovation-ideas__card footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  font-size: 0.85rem;
+  color: var(--slate-300);
+}
+
+.complexity {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.complexity::before {
+  content: '';
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--cyan-400);
+}
+
+.complexity--very-high::before {
+  background: var(--red-400);
+}
+
+.complexity--high::before {
+  background: var(--orange-400);
+}
+
+.complexity--medium-high::before {
+  background: var(--amber-400);
+}
+
+.complexity--medium::before {
+  background: var(--lime-400);
+}
+
+.complexity--low::before {
+  background: var(--green-400);
+}
+
+.time,
+.technical-depth {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.time::before {
+  content: '⏱';
+}
+
+.technical-depth::before {
+  content: '⚙️';
+}
