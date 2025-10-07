@@ -35,6 +35,12 @@ All data is synthetic but mirrors realistic KPIs and innovation themes.
 - Preserved all prior backlog UX enhancements: optimistic moderation, draft autosave/discard, metadata presets, and accessibility tweaks.
 - Added a dedicated Postgres migration CLI (`npm run db:migrate`) with optional seeding for managed environments.
 - Introduced a live analytics stream and dashboard widget that refreshes every ~15 seconds with synthetic telemetry derived from partner trends.
+- Instrumented Prometheus gauges & histograms for the partner-signal latency SLO, exposed at `/metrics`, and shipped ready-to-import Grafana/Honeycomb assets.
+- Wired the live analytics service to ingest NDJSON, JSON, or Kafka streams with schema validation, test-only injectors, and caching to smooth bursts.
+- Automated IdP moderator provisioning via SCIM/Okta workflows with a sync CLI (`npm run idp:sync`) that keeps reviewer records, roles, and SLO dashboards aligned.
+- Provisioned Grafana alerting assets that fan out the partner-signal SLO breach to Slack and MS Teams with on-call friendly messaging.
+- Expanded the Kafka ingestion path to decode Confluent Schema Registry payloads (Avro, Protobuf, JSON) with runtime validation and graceful JSON fallback.
+- Launched a shadow approval queue that enrolls SCIM-provisioned moderators for tiered pilots alongside the primary backlog workflow.
 
 ## Getting Started
 
@@ -108,6 +114,7 @@ npm run ci
 - Tracing is gated behind `ENABLE_OTEL` so local contributors can opt-in without additional dependencies. When disabled, the middleware still attaches request IDs and logs structured durations via `pino`.
 - Frontend spans now ship with semantic events: set `VITE_ENABLE_WEB_OTEL=true` and point `VITE_OTEL_EXPORTER_OTLP_URL` at your collector to emit browser spans (DocumentLoad, Fetch, and custom UI spans for partner signal workflows and live analytics refreshes). Keep `VITE_OTEL_EXPORTER_CONSOLE=true` in development to mirror spans to the browser console.
 - `src/telemetry/spans.ts` exports helpers (`withWebSpan`, `startWebSpan`) so new UI features can add spans with consistent attributes.
+- The API now exposes Prometheus metrics under `/metrics`, including `partner_signal_pending_total`, latency histograms, and SLO breach counters. Ready-to-import Grafana, Honeycomb, and Tempo playbooks live in `observability/` to accelerate dashboard brings-ups. Configure `METRICS_REFRESH_INTERVAL_MS` and `PARTNER_SIGNAL_SLO_TARGET_MINUTES` to tune refresh cadence and alert sensitivity.
 
 ## Live Analytics Stream
 
@@ -118,6 +125,8 @@ npm run ci
 	- `narrative`: a short headline summarizing the largest swings.
 - Responses are cached for 5 seconds via the distributed cache façade to smooth bursts while remaining “live”.
 - Point `LIVE_ANALYTICS_STREAM_URL` at a managed NDJSON or JSON feed (Kafka REST proxy, Flink job, or Feature Store API) to hydrate the dashboard; the server automatically normalizes the feed, applies anomaly thresholds, and falls back to the on-disk replay (`LIVE_ANALYTICS_STREAM_PATH`) if the upstream is unreachable.
+- Configure `LIVE_ANALYTICS_KAFKA_BROKERS` and related envs to stream directly from Kafka without code changes. The service buffers the latest events per metric, respects backpressure via TTLs, and continues to fall back gracefully when the topic is unreachable.
+- Set `LIVE_ANALYTICS_SCHEMA_REGISTRY_URL` (with optional basic auth or bearer token) to auto-decode Confluent Schema Registry payloads; Avro/Protobuf/JSON Schemas are validated on ingest with a JSON fallback when decoding fails.
 - The React dashboard polls this endpoint to power the **Live Network Telemetry** panel; metrics render with in-card sparklines and color-coded deltas. Custom spans (`ui.live_analytics.refresh`) capture each refresh cadence for observability.
 
 ## Production RBAC Blueprint
@@ -133,14 +142,25 @@ npm run ci
 	- Rate limits per `user.id` when attaching to public portals.
 - Update the `attachRequestUser` middleware to accept provider-specific claim names if your SSO gateway uses different headers.
 - When `ENABLE_IDP_INTEGRATION=true`, the API verifies inbound bearer tokens (or `X-Id-Token`) against your IdP’s JWKS. Configure `IDP_ISSUER`, `IDP_AUDIENCE`, and the claim mappings (`IDP_ROLE_CLAIM`, `IDP_USER_ID_CLAIM`, `IDP_USER_NAME_CLAIM`, `IDP_GROUPS_CLAIM`). Add `IDP_REQUIRE_TOKEN=true` to enforce token presence, and list moderator-eligible groups via `IDP_MODERATOR_GROUPS`.
+- SCIM & Okta Workflows can keep the reviewer roster fresh via `npm run idp:sync`: it calls the IdP’s SCIM API, upserts moderators, deactivates stale accounts, and feeds the auto-assignment pool used by the partner signal service.
 - The React shell surfaces an IdP session banner that lets operators paste a signed JWT for local testing. Tokens are forwarded automatically via `Authorization: Bearer …` and the `X-Id-Token` header, enabling end-to-end verification without bespoke curl scripts.
 - To automate moderator provisioning, sync an Okta/Azure AD group to the `IDP_MODERATOR_GROUPS` list and pre-populate the JWT with that group claim; the middleware will upgrade the requester to the `colleague` role on verification.
 
 ## Next Steps
 
-1. Stand up observability dashboards (Honeycomb/Tempo/Grafana) that stitch the new browser + API spans, define golden signals, and alert on partner-signal latency SLOs.
-2. Replace the NDJSON replay file with a managed Kafka/Flink stream in staging, adding schema validation and backpressure handling before rolling into production.
-3. Automate IdP moderator provisioning via SCIM/Okta Workflows, seeding reviewer records and rotating signing keys to keep `verifyIdentityToken` aligned with enterprise policies.
+1. Elevate the shadow queue into the UI so colleagues can acknowledge, escalate, and filter pilot reviews directly from the dashboard.
+2. Add schema compatibility smoke tests & automatic subject registration to guard against live Kafka payload drifts.
+3. Layer incident hygiene on the Grafana bridge (quiet hours, auto-resolve pings, PagerDuty hand-off) before expanding to production scale.
+
+
+## Shadow Approval Queue
+
+- Toggle `SHADOW_APPROVAL_QUEUE_ENABLED=true` (default) and sync moderators via `npm run idp:sync` to auto-populate the pilot queue. Members of any `SHADOW_APPROVAL_QUEUE_GROUPS` (defaults to `ecosystem-shadow-approvers`) are automatically enrolled.
+- Every partner submission adds a pending record to `partner_signal_shadow_queue`, preserving the existing optimistic workflow while giving senior reviewers a “shadow” backlog to validate before full rollout.
+- Colleague endpoints:
+	- `GET /api/partners/shadow-queue` — returns pending and decided items with partner/merchant metadata and supports `?tier=pilot` filtering.
+	- `POST /api/partners/shadow-queue/:queueId/decision` — acknowledge or escalate items with optional notes; decisions stamp reviewer identity and timestamps.
+- Entries feed the Grafana SLO dashboards and Slack/MS Teams alerts so pilot moderators can triage within their existing incident channels.
 
 
 ## Partner Signals API

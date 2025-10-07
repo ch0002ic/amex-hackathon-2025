@@ -90,6 +90,37 @@ export const partnerSignalAuditListSchema = z.object({
   items: z.array(partnerSignalAuditSchema),
 })
 
+export const shadowApprovalStatusSchema = z.enum(['pending', 'acknowledged', 'escalated'])
+
+export const shadowQueueItemSchema = z.object({
+  id: z.string(),
+  signalId: z.string(),
+  signalPartnerName: z.string(),
+  signalMerchantName: z.string(),
+  signalType: z.enum(['growth', 'risk', 'retention', 'innovation', 'compliance']),
+  signalStatus: z.enum(['pending', 'approved', 'archived']),
+  submittedAt: z.string().datetime(),
+  reviewerId: z.string(),
+  reviewerName: z.string(),
+  reviewerRole: reviewerRoleSchema,
+  tier: z.string(),
+  status: shadowApprovalStatusSchema,
+  createdAt: z.string().datetime(),
+  decisionAt: z.string().datetime().nullable(),
+  decisionById: z.string().nullable(),
+  decisionByName: z.string().nullable(),
+  notes: z.string().nullable(),
+})
+
+export const shadowQueueListSchema = z.object({
+  items: z.array(shadowQueueItemSchema),
+})
+
+export const shadowQueueDecisionSchema = z.object({
+  action: z.enum(['acknowledged', 'escalated']),
+  notes: z.string().max(500).optional(),
+})
+
 export const partnerSignalAssignmentListSchema = z.object({
   items: z.array(partnerSignalAssignmentSchema),
 })
@@ -105,3 +136,6 @@ export type PartnerSignalAssignmentPayload = z.infer<typeof partnerSignalAssignm
 export type PartnerSignalAssignmentListPayload = z.infer<typeof partnerSignalAssignmentListSchema>
 export type PartnerSignalAuditPayload = z.infer<typeof partnerSignalAuditSchema>
 export type PartnerSignalAuditListPayload = z.infer<typeof partnerSignalAuditListSchema>
+export type ShadowQueueItemPayload = z.infer<typeof shadowQueueItemSchema>
+export type ShadowQueueListPayload = z.infer<typeof shadowQueueListSchema>
+export type ShadowQueueDecisionPayload = z.infer<typeof shadowQueueDecisionSchema>

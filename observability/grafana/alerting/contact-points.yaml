@@ -1,0 +1,32 @@
+apiVersion: 1
+contactPoints:
+  - name: Partner Signals On-Call Bridge
+    receivers:
+      - uid: slack-partner-slo
+        type: slack
+        settings:
+          url: ${SLO_ALERT_SLACK_WEBHOOK}
+          recipient: ${SLO_ALERT_SLACK_CHANNEL}
+          icon_emoji: bar_chart
+          username: Partner Signals SLO Bot
+          text: |
+            :rotating_light: *Partner signal backlog SLO breached*
+
+            *Signal ID:* {{ $labels.signal_id | default "n/a" }}
+            *Current backlog:* {{ $values.A | printf "%.0f" }} pending signals over SLO target
+            *Alert window:* {{ $labels.window | default "5m" }}
+
+            Respond within ${SLO_ALERT_ONCALL_HANDOFF_MINUTES:-5} minutes to keep the pilot queue healthy.
+        disableResolveMessage: false
+      - uid: teams-partner-slo
+        type: msteams
+        settings:
+          url: ${SLO_ALERT_TEAMS_WEBHOOK}
+          message: |
+            **Partner signal backlog SLO breached**
+
+            • Signal ID: {{ $labels.signal_id | default "n/a" }}
+            • Pending over target: {{ $values.A | printf "%.0f" }}
+            • Review tier: {{ $labels.tier | default "pilot" }}
+
+            Please triage via the shadow approval queue and update Grafana when acknowledged.

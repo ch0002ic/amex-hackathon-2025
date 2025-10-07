@@ -8,6 +8,7 @@ import crypto from 'node:crypto'
 import { ZodError } from 'zod'
 import { attachRequestUser } from './middleware/auth.js'
 import { context, propagation, SpanStatusCode, trace } from '@opentelemetry/api'
+import { metricsRegistry } from './metrics/registry.js'
 
 export function createApp(): Application {
   const app = express()
@@ -147,6 +148,11 @@ export function createApp(): Application {
     }
 
     res.json(payload)
+  })
+
+  app.get('/metrics', async (_req, res) => {
+    res.setHeader('content-type', metricsRegistry.contentType)
+    res.send(await metricsRegistry.metrics())
   })
 
   app.use('/api', createApiRouter())

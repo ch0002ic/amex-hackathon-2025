@@ -175,3 +175,36 @@ export interface PartnerSignalAssignment {
   assignedAt: string
   active: boolean
 }
+
+export type ShadowApprovalStatus = 'pending' | 'acknowledged' | 'escalated'
+
+export interface ShadowApprovalQueueItem {
+  id: string
+  signalId: string
+  signalPartnerName: string
+  signalMerchantName: string
+  signalType: PartnerSignal['signalType']
+  signalStatus: PartnerSignal['status']
+  submittedAt: string
+  reviewerId: string
+  reviewerName: string
+  reviewerRole: ReviewerRole
+  tier: string
+  status: ShadowApprovalStatus
+  createdAt: string
+  decisionAt: string | null
+  decisionById: string | null
+  decisionByName: string | null
+  notes: string | null
+}
+
+export interface ModeratorProfile {
+  id: string
+  name: string
+  email?: string | null
+  role: ReviewerRole
+  active: boolean
+  source: string
+  syncedAt: string
+  metadata: Record<string, unknown>
+}

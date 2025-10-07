@@ -17,26 +17,34 @@ const USER_ID_CLAIM = process.env.IDP_USER_ID_CLAIM ?? 'sub'
 const USER_NAME_CLAIM = process.env.IDP_USER_NAME_CLAIM ?? 'name'
 const GROUPS_CLAIM = process.env.IDP_GROUPS_CLAIM ?? 'groups'
 const MODERATOR_GROUPS = parseCsv(process.env.IDP_MODERATOR_GROUPS)
+const JWKS_ROTATE_MS = Math.max(60_000, (Number.parseInt(process.env.IDP_JWKS_ROTATE_MINUTES ?? '60', 10) || 60) * 60_000)
 
 let remoteJwks: ReturnType<typeof createRemoteJWKSet> | null = null
+let jwksFetchedAt = 0
 
 export async function verifyIdentityToken(token: string): Promise<VerifiedIdentity | null> {
   if (!ENABLED || !JWKS_URL || !ISSUER || !AUDIENCE) {
     return null
   }
 
-  try {
-    if (!remoteJwks) {
-      remoteJwks = createRemoteJWKSet(new URL(JWKS_URL))
-    }
+  return verifyTokenWithRefresh(token, true)
+}
 
-    const { payload } = await jwtVerify(token, remoteJwks, {
+async function verifyTokenWithRefresh(token: string, allowRefresh: boolean): Promise<VerifiedIdentity | null> {
+  try {
+    const jwks = await resolveRemoteJwks()
+    const { payload } = await jwtVerify(token, jwks, {
       issuer: ISSUER,
       audience: AUDIENCE,
     })
 
     return mapPayloadToIdentity(payload)
   } catch (error) {
+    if (allowRefresh && shouldRefreshKeys(error)) {
+      invalidateCachedJwks()
+      return verifyTokenWithRefresh(token, false)
+    }
+
     logger.warn({ err: error }, 'idp-token-verification-failed')
     return null
   }
@@ -60,6 +68,33 @@ function mapPayloadToIdentity(payload: JWTPayload): VerifiedIdentity | null {
     name,
     role,
   }
+}
+
+async function resolveRemoteJwks(): Promise<ReturnType<typeof createRemoteJWKSet>> {
+  const needsRefresh =
+    !remoteJwks ||
+    Date.now() - jwksFetchedAt > JWKS_ROTATE_MS
+
+  if (needsRefresh) {
+    remoteJwks = createRemoteJWKSet(new URL(JWKS_URL!))
+    jwksFetchedAt = Date.now()
+  }
+
+  return remoteJwks!
+}
+
+function invalidateCachedJwks(): void {
+  remoteJwks = null
+  jwksFetchedAt = 0
+}
+
+function shouldRefreshKeys(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) {
+    return false
+  }
+
+  const code = (error as { code?: string }).code
+  return code === 'ERR_JWKS_NO_MATCHING_KEY' || code === 'ERR_JWKS_RATE_LIMITING'
 }
 
 function readClaim(payload: JWTPayload, key: string): unknown {

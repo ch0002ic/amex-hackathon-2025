@@ -20,8 +20,16 @@ import {
   partnerSignalStatusSchema,
   partnerSignalStatsSchema,
   partnerSignalAuditListSchema,
+  shadowQueueDecisionSchema,
+  shadowQueueItemSchema,
+  shadowQueueListSchema,
 } from '../schemas/partners.js'
 import { requireRole } from '../middleware/requireRole.js'
+import {
+  isShadowQueueEnabled,
+  listShadowApprovalQueue,
+  recordShadowQueueDecision,
+} from '../services/shadowApprovalQueue.js'
 
 export function createPartnerRouter(): Router {
   const router = Router()
@@ -131,6 +139,42 @@ export function createPartnerRouter(): Router {
       }
 
       res.json(partnerSignalSchema.parse(updated))
+    }),
+  )
+
+  router.get(
+    '/shadow-queue',
+    requireRole('colleague'),
+    asyncHandler(async (req, res) => {
+      if (!isShadowQueueEnabled()) {
+        res.json(shadowQueueListSchema.parse({ items: [] }))
+        return
+      }
+
+      const tier = typeof req.query.tier === 'string' && req.query.tier.length > 0 ? req.query.tier : undefined
+      const queue = await listShadowApprovalQueue(tier)
+      res.json(shadowQueueListSchema.parse({ items: queue }))
+    }),
+  )
+
+  router.post(
+    '/shadow-queue/:id/decision',
+    requireRole('colleague'),
+    asyncHandler(async (req, res) => {
+      if (!isShadowQueueEnabled()) {
+        res.status(404).json({ message: 'Shadow approval queue is disabled' })
+        return
+      }
+
+      const decision = shadowQueueDecisionSchema.parse(req.body)
+      const updated = await recordShadowQueueDecision(req.params.id, { id: req.user.id, name: req.user.name }, decision)
+
+      if (!updated) {
+        res.status(404).json({ message: 'Queue item not found or already processed' })
+        return
+      }
+
+      res.json(shadowQueueItemSchema.parse(updated))
     }),
   )
 

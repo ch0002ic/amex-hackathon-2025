@@ -1,0 +1,70 @@
+{
+  "name": "Partner Signal Golden Signals",
+  "description": "Board linking browser and API traces to monitor partner moderation latency.",
+  "style": "grid",
+  "queries": [
+    {
+      "caption": "Partner API p95",
+      "dataset": "ecosystem-intelligence-api",
+      "query": {
+        "breakdowns": ["service.name"],
+        "calculations": [
+          {
+            "op": "HEATMAP",
+            "column": "duration_ms"
+          }
+        ],
+        "filters": [
+          {
+            "column": "name",
+            "op": "=~",
+            "value": "partnerSignals.*"
+          }
+        ],
+        "time_range": 3600
+      }
+    },
+    {
+      "caption": "UI refresh latency",
+      "dataset": "ecosystem-intelligence-web",
+      "query": {
+        "breakdowns": ["attributes.ui.live_analytics.refresh"],
+        "calculations": [
+          {
+            "op": "AVG",
+            "column": "duration_ms"
+          }
+        ],
+        "filters": [
+          {
+            "column": "name",
+            "op": "=~",
+            "value": "ui.live_analytics.*"
+          }
+        ],
+        "time_range": 900
+      }
+    },
+    {
+      "caption": "Trace waterfall",
+      "dataset": "ecosystem-intelligence-api",
+      "query": {
+        "breakdowns": ["trace.trace_id"],
+        "calculations": [
+          {
+            "op": "MAX",
+            "column": "duration_ms"
+          }
+        ],
+        "filters": [
+          {
+            "column": "http.route",
+            "op": "=",
+            "value": "/api/partners/signals/:id"
+          }
+        ],
+        "time_range": 900
+      }
+    }
+  ]
+}

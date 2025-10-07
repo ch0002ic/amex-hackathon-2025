@@ -1,8 +1,15 @@
 import request from 'supertest'
-import { describe, expect, it } from 'vitest'
-import { createApp } from '../app'
+import { beforeAll, describe, expect, it } from 'vitest'
+import { createApp } from '../app.js'
+import { databaseReady } from '../db/client.js'
+import { refreshPartnerSignalBacklogMetrics } from '../metrics/partnerSignals.js'
 
 const app = createApp()
+
+beforeAll(async () => {
+  await databaseReady
+  await refreshPartnerSignalBacklogMetrics()
+})
 
 describe('Ecosystem Intelligence API', () => {
   it('exposes health status', async () => {
@@ -87,5 +94,13 @@ describe('Ecosystem Intelligence API', () => {
       trend: expect.any(Array),
     })
     expect(response.body.narrative).toEqual(expect.any(String))
+  })
+
+  it('exposes Prometheus metrics', async () => {
+    const response = await request(app).get('/metrics')
+
+    expect(response.status).toBe(200)
+    expect(response.header['content-type']).toContain('text/plain')
+    expect(response.text).toContain('partner_signal_pending_total')
   })
 })

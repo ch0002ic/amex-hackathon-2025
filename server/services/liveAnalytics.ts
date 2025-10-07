@@ -12,8 +12,11 @@ import type {
   LiveMetric,
   LiveMetricTrendPoint,
 } from '../../shared/types/domain.js'
-import { liveMetricCatalog, liveMetricMetadataById } from '../../shared/data/liveAnalytics.js'
+import { liveMetricCatalog } from '../../shared/data/liveAnalytics.js'
 import { generateSyntheticSnapshot } from './liveAnalyticsSynthetic.js'
+import { getKafkaStreamEvents, isKafkaLiveAnalyticsEnabled } from './liveAnalyticsKafka.js'
+import { normalizeRawEvent } from './liveAnalyticsNormalizer.js'
+import type { RawStreamEvent, StreamEvent } from './liveAnalyticsTypes.js'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const TREND_POINTS = 10
@@ -22,18 +25,6 @@ const CACHE_TTL_MS = 3_000
 const STREAM_PATH = process.env.LIVE_ANALYTICS_STREAM_PATH ?? path.resolve(dirname, '../../storage/live-analytics-stream.ndjson')
 const STREAM_URL = process.env.LIVE_ANALYTICS_STREAM_URL
 const STREAM_POLL_MS = Math.max(2_000, (Number.parseInt(process.env.LIVE_ANALYTICS_STREAM_POLL_SECONDS ?? '', 10) || 15) * 1000)
-
-interface StreamEvent {
-  metricId: string
-  timestamp: number
-  value: number
-}
-
-interface RawStreamEvent {
-  metricId?: unknown
-  timestamp?: unknown
-  value?: unknown
-}
 
 let cache: { loadedAt: number; snapshot: LiveAnalyticsSnapshot | null } = {
   loadedAt: 0,
@@ -58,6 +49,17 @@ export async function getLiveAnalyticsSnapshot(): Promise<LiveAnalyticsSnapshot>
 }
 
 async function loadStreamEvents(): Promise<StreamEvent[]> {
+  if (isKafkaLiveAnalyticsEnabled()) {
+    try {
+      const kafkaEvents = await getKafkaStreamEvents()
+      if (kafkaEvents.length > 0) {
+        return kafkaEvents
+      }
+    } catch (error) {
+      logger.warn({ err: error }, 'live-analytics-kafka-fetch-failed')
+    }
+  }
+
   const now = Date.now()
 
   if (STREAM_URL) {
@@ -83,7 +85,7 @@ async function loadStreamEvents(): Promise<StreamEvent[]> {
         return events
       }
     } catch (error) {
-      logger.warn({ error }, 'live-analytics-stream-fetch-failed')
+  logger.warn({ err: error }, 'live-analytics-stream-fetch-failed')
     }
   }
 
@@ -92,7 +94,7 @@ async function loadStreamEvents(): Promise<StreamEvent[]> {
     const events = parseStreamPayload(raw)
     return events
   } catch (error) {
-    logger.warn({ error }, 'live-analytics-stream-read-failed')
+  logger.warn({ err: error }, 'live-analytics-stream-read-failed')
     return []
   }
 }
@@ -112,7 +114,7 @@ function parseStreamPayload(payload: string): StreamEvent[] {
           .filter((value): value is StreamEvent => value !== null)
       }
     } catch (error) {
-      logger.warn({ error }, 'live-analytics-stream-json-parse-failed')
+  logger.warn({ err: error }, 'live-analytics-stream-json-parse-failed')
     }
   }
 
@@ -133,42 +135,6 @@ function safeJsonParse(line: string): RawStreamEvent | null {
     return JSON.parse(line) as RawStreamEvent
   } catch {
     return null
-  }
-}
-
-function normalizeRawEvent(parsed: RawStreamEvent | null): StreamEvent | null {
-  if (!parsed || typeof parsed.metricId !== 'string') {
-    return null
-  }
-
-  const metadata = liveMetricMetadataById.get(parsed.metricId)
-  if (!metadata) {
-    return null
-  }
-
-  let timestamp: number | null = null
-  if (typeof parsed.timestamp === 'string') {
-    const parsedTs = Date.parse(parsed.timestamp)
-    timestamp = Number.isNaN(parsedTs) ? null : parsedTs
-  } else if (typeof parsed.timestamp === 'number') {
-    timestamp = Number.isFinite(parsed.timestamp) ? parsed.timestamp : null
-  }
-
-  if (!timestamp) {
-    return null
-  }
-
-  const finalTimestamp = timestamp
-
-  const numericValue = typeof parsed.value === 'number' ? parsed.value : Number(parsed.value)
-  if (!Number.isFinite(numericValue)) {
-    return null
-  }
-
-  return {
-    metricId: parsed.metricId,
-    timestamp: finalTimestamp,
-    value: numericValue,
   }
 }
 

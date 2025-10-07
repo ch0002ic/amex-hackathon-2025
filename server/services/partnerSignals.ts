@@ -9,6 +9,9 @@ import type {
   ReviewerRole,
 } from '../../shared/types/domain.js'
 import { dbPool, reseedPartnerSignals } from '../db/client.js'
+import { observePartnerSignalReviewLatency, refreshPartnerSignalBacklogMetrics } from '../metrics/partnerSignals.js'
+import { selectModeratorForAssignment } from './moderators.js'
+import { enqueueShadowApprovers } from './shadowApprovalQueue.js'
 
 const tracer = trace.getTracer('partner-signals-service')
 
@@ -183,12 +186,21 @@ export async function recordPartnerSignal(input: PartnerSignalInput & {
     const client = await dbPool.connect()
     const signalId = crypto.randomUUID()
     const submittedAt = new Date().toISOString()
-    const reviewerId = input.assignedReviewerId ?? null
-    const reviewerName = input.assignedReviewerName ?? null
-    const reviewerRole = input.assignedReviewerRole ?? null
+    let reviewerId = input.assignedReviewerId ?? null
+    let reviewerName = input.assignedReviewerName ?? null
+    let reviewerRole = input.assignedReviewerRole ?? null
 
     try {
       await client.query('BEGIN')
+
+      if (!reviewerId) {
+        const autoModerator = await selectModeratorForAssignment(client)
+        if (autoModerator) {
+          reviewerId = autoModerator.id
+          reviewerName = autoModerator.name
+          reviewerRole = autoModerator.role
+        }
+      }
 
       const insertResult = await client.query<PartnerSignalRow>(
         `INSERT INTO partner_signals (
@@ -305,7 +317,10 @@ export async function recordPartnerSignal(input: PartnerSignalInput & {
         )
       }
 
-      await client.query('COMMIT')
+  await enqueueShadowApprovers(client, signalId)
+
+  await client.query('COMMIT')
+      void refreshPartnerSignalBacklogMetrics()
       return mapSignal(insertResult.rows[0])
     } catch (error) {
       await client.query('ROLLBACK')
@@ -399,7 +414,20 @@ export async function updatePartnerSignalStatus(
       )
 
       await client.query('COMMIT')
-      return mapSignal(updateResult.rows[0])
+
+      const updatedSignal = mapSignal(updateResult.rows[0])
+
+      if ((status === 'approved' || status === 'archived') && current.status !== status) {
+        const submittedTimestamp = new Date(current.submitted_at).getTime()
+        if (!Number.isNaN(submittedTimestamp)) {
+          const latencyMs = Date.now() - submittedTimestamp
+          observePartnerSignalReviewLatency(latencyMs)
+        }
+      }
+
+      void refreshPartnerSignalBacklogMetrics()
+
+      return updatedSignal
     } catch (error) {
       await client.query('ROLLBACK')
       throw error

@@ -1,7 +1,10 @@
+process.env.SHADOW_APPROVAL_QUEUE_ENABLED = 'true'
+process.env.SHADOW_APPROVAL_QUEUE_GROUPS = 'ecosystem-shadow-approvers'
+
 import request, { type Test } from 'supertest'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { createApp } from '../app.js'
-import { databaseReady } from '../db/client.js'
+import { databaseReady, dbPool } from '../db/client.js'
 import { resetPartnerSignals } from '../services/partnerSignals.js'
 
 const app = createApp()
@@ -12,6 +15,7 @@ beforeAll(async () => {
 
 afterEach(async () => {
   await resetPartnerSignals()
+  await dbPool.query('TRUNCATE TABLE moderators RESTART IDENTITY CASCADE')
 })
 
 function asColleague(test: Test): Test {
@@ -209,5 +213,45 @@ describe('Partner Signals API', () => {
       .send({ status: 'archived' })
 
     expect(response.status).toBe(403)
+  })
+
+  it('routes shadow approvals to pilot moderators and records decisions', async () => {
+    await dbPool.query(
+      `INSERT INTO moderators (id, email, name, role, source, active, synced_at, metadata)
+       VALUES ($1,$2,$3,$4,$5,$6,NOW(),$7)` ,
+      ['pilot.reviewer', 'pilot@example.com', 'Pilot Reviewer', 'colleague', 'scim', true, { groups: ['ecosystem-shadow-approvers'] }],
+    )
+
+    const payload = {
+      partnerId: 'shadow-labs',
+      partnerName: 'Shadow Labs',
+      merchantId: 'shadow-merchant',
+      merchantName: 'Shadow Merchant',
+      signalType: 'growth',
+      description: 'Tiered review pilot signal description with enough detail to satisfy validation rules.',
+      confidence: 0.7,
+      metadata: {
+        pilot: true,
+      },
+    }
+
+    const createResponse = await request(app).post('/api/partners/signals').send(payload)
+    expect(createResponse.status).toBe(201)
+
+    const queueResponse = await asColleague(request(app).get('/api/partners/shadow-queue'))
+    expect(queueResponse.status).toBe(200)
+    expect(queueResponse.body.items.length).toBeGreaterThan(0)
+
+    const queueItem = queueResponse.body.items[0]
+    expect(queueItem).toMatchObject({ signalId: createResponse.body.id, status: 'pending' })
+
+    const decisionResponse = await asColleague(
+      request(app)
+        .post(`/api/partners/shadow-queue/${queueItem.id}/decision`)
+        .send({ action: 'acknowledged', notes: 'Shadow reviewer confirmed alignment.' }),
+    )
+
+    expect(decisionResponse.status).toBe(200)
+    expect(decisionResponse.body).toMatchObject({ status: 'acknowledged', decisionById: 'qa.colleague' })
   })
 })

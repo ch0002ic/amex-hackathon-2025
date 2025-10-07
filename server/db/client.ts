@@ -136,11 +136,40 @@ async function applyMigrations(): Promise<void> {
       notes TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )`,
+    `CREATE TABLE IF NOT EXISTS moderators (
+      id TEXT PRIMARY KEY,
+      email TEXT,
+      name TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'colleague',
+      source TEXT NOT NULL DEFAULT 'manual',
+      active BOOLEAN NOT NULL DEFAULT TRUE,
+      synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+      CONSTRAINT uq_moderators_email UNIQUE (email)
+    )`,
+    `CREATE TABLE IF NOT EXISTS partner_signal_shadow_queue (
+      id UUID PRIMARY KEY,
+      signal_id TEXT NOT NULL REFERENCES partner_signals(id) ON DELETE CASCADE,
+      reviewer_id TEXT NOT NULL,
+      reviewer_name TEXT NOT NULL,
+      reviewer_role TEXT NOT NULL,
+      tier TEXT NOT NULL DEFAULT 'pilot',
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      decision_at TIMESTAMPTZ,
+      decision_by_id TEXT,
+      decision_by_name TEXT,
+      notes TEXT
+    )`,
     `CREATE INDEX IF NOT EXISTS idx_partner_signals_submitted_at ON partner_signals(submitted_at DESC)`,
     `CREATE INDEX IF NOT EXISTS idx_partner_signals_status ON partner_signals(status)`,
     `CREATE INDEX IF NOT EXISTS idx_signal_assignments_signal_id ON partner_signal_assignments(signal_id)`,
     `CREATE INDEX IF NOT EXISTS idx_signal_audits_signal_id ON partner_signal_audits(signal_id)`,
-    `CREATE INDEX IF NOT EXISTS idx_signal_audits_created_at ON partner_signal_audits(created_at DESC)`
+    `CREATE INDEX IF NOT EXISTS idx_signal_audits_created_at ON partner_signal_audits(created_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_moderators_active ON moderators(active)`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS uq_shadow_queue_signal_reviewer ON partner_signal_shadow_queue(signal_id, reviewer_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_shadow_queue_status ON partner_signal_shadow_queue(status)`,
+    `CREATE INDEX IF NOT EXISTS idx_shadow_queue_tier ON partner_signal_shadow_queue(tier)`
   ]
 
   for (const statement of migrations) {
@@ -339,6 +368,7 @@ export async function reseedPartnerSignals(): Promise<void> {
   const client = await dbPool.connect()
   try {
     await client.query('BEGIN')
+  await client.query('TRUNCATE TABLE partner_signal_shadow_queue RESTART IDENTITY CASCADE')
     await client.query('TRUNCATE TABLE partner_signal_audits RESTART IDENTITY CASCADE')
     await client.query('TRUNCATE TABLE partner_signal_assignments RESTART IDENTITY CASCADE')
     await client.query('TRUNCATE TABLE partner_signals RESTART IDENTITY CASCADE')

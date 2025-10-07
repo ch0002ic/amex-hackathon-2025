@@ -1,0 +1,38 @@
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: partner-signal-latency-slo
+    folder: Partner Signal SLOs
+    interval: 1m
+    rules:
+      - uid: partner-signal-backlog-breach
+        title: Partner Signal Backlog SLO Breach
+        condition: A
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            relativeTimeRange:
+              from: 0
+              to: 0
+            model:
+              refId: A
+              expr: partner_signal_slo_breach_total
+              format: time_series
+              interval: ""
+              legendFormat: ""
+              datasource:
+                type: prometheus
+                uid: prometheus
+        annotations:
+          runbook: https://github.com/ch0002ic/amex-hackathon-2025/tree/main/observability
+          tier: ${SHADOW_APPROVAL_QUEUE_TIER:-pilot}
+        labels:
+          severity: critical
+          service: partner-signals
+        noDataState: OK
+        execErrState: Alerting
+        for: 2m
+        notification_settings:
+          contact_point: Partner Signals On-Call Bridge
+          notify_when: alerting
+        isPaused: false
