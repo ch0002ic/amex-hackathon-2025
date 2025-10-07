@@ -1,11 +1,16 @@
-import { SchemaRegistry, type SchemaRegistryAPIClientArgs } from '@kafkajs/confluent-schema-registry'
+import { SchemaRegistry } from '@kafkajs/confluent-schema-registry'
 import { logger } from '../utils/logger.js'
 
 type SchemaRegistryAuth =
   | { username: string; password: string }
   | { token: string }
 
-type SchemaRegistryConfig = SchemaRegistryAPIClientArgs & { enabled: boolean }
+type SchemaRegistryConfig = {
+  enabled: boolean
+  host: string
+  auth?: SchemaRegistryAuth
+  clientId?: string
+}
 
 type SchemaRegistryHeaders = Record<string, unknown> | undefined
 
